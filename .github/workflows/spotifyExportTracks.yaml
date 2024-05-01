@@ -1,0 +1,49 @@
+name: Spotify Export Tracks
+
+on:
+  schedule:
+    # 在北京时间每周日晚上10点执行（UTC时间每周日14:00）
+    - cron: '0 14 * * 0'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+      - run: pnpm i --frozen-lockfile
+      - name: Run spotifyExportTracks.ts
+        env:
+            SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+            SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+            SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+            T2S_PHRASES: ${{ secrets.T2S_PHRASES }}
+        run: |
+          pnpm spotifyExportTracks
+      - name: Read spotifyTracks-statistics.txt
+        run: |
+          content=$(head -n 1 data/spotifyTracks-statistics.txt)
+          echo "SPOTIFY_TRACKS_STATISTICS=$content" >> $GITHUB_ENV # 将文件内容存在变量里
+      - name: Commint and push
+        run: |
+          last_author_name=$(git log -1 --pretty=format:'%an')
+          last_author_email=$(git log -1 --pretty=format:'%ae')
+          git config --global user.name "$last_author_name"
+          git config --global user.email "$last_author_email"
+          git add -A
+          git commit --allow-empty -m "spotifyExportTracks: $SPOTIFY_TRACKS_STATISTICS"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
