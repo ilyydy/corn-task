@@ -43,7 +43,9 @@ jobs:
             SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
             SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
             SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-            T2S_PHRASES: ${{ secrets.T2S_PHRASES }}
+            SPOTIFY_T2S_ENABLE: ${{ env.SPOTIFY_T2S_ENABLE }}
+            T2S_PHRASES: ${{ env.T2S_PHRASES }}
+            NOTIFY_URL: ${{ secrets.NOTIFY_URL }}
         run: pnpm spotifyExportTracks
       - name: Push to branch
         uses: JamesIves/github-pages-deploy-action@releases/v4
