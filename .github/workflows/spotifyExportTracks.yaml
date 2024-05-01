@@ -19,13 +19,16 @@ jobs:
           ref: 'spotifyTracks'
         continue-on-error: true
       - run: |
+          mkdir tmp
           if [ -f spotifyTracks-full.txt ]; then
-            mkdir tmp
             cp spotifyTracks-full.txt tmp/spotifyTracks-full.txt
           fi
-      - uses: actions/checkout@v4
-        with:
-          ref: 'main'
+          ls tmp
+      - run: |
+          git fetch --depth 1 origin main:main
+          git branch
+          git checkout main
+          ls tmp
       - uses: pnpm/action-setup@v3
         with:
           version: 9
