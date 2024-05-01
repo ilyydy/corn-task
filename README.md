@@ -25,9 +25,9 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 1. 按照 Spotify 官方流程创建勾选了 Web API 的 App, Redirect URI 填 `http://localhost:9000/spotify/callback`, 获得 Client ID 和 Client secret
 2. fork 本仓库并 clone 到本地。fork 的仓库最好改为私密仓库, 你也不想自己的歌单公开吧
 3. 安装依赖, 复制 `.template.env` 为 `.env`, `.env` 中填入第1步获取的 Client ID 和 Client secret, `SPOTIFY_CLIENT_ID` 即 Client ID, `SPOTIFY_CLIENT_SECRET` 即 Client secret
-4. 运行 `src/spotifyServer.ts`, 启动一个本地服务, 走 Spotify 认证权限流程, 浏览器访问 `http://localhost:9000/login` 后会自动跳转 Spotify 页面, 点击确认对你的 App 进行授权, 然后 Spotify 回调 `http://localhost:9000/spotify/callback`, 本地服务会请求 Spotify 接口获取并打印 token 信息
+4. 运行 `src/spotify/server.ts`, 启动一个本地服务, 走 Spotify 认证权限流程, 浏览器访问 `http://localhost:9000/login` 后会自动跳转 Spotify 页面, 点击确认对你的 App 进行授权, 然后 Spotify 回调 `http://localhost:9000/spotify/callback`, 本地服务会请求 Spotify 接口获取并打印 token 信息
 5. 复制 access token 填入 `.env` 中的 `SPOTIFY_REFRESH_TOKEN`
-6. 如果一切正常, 本地运行 `src/spotifyExportTracks.ts` 则会导出点赞歌单
+6. 如果一切正常, 本地运行 `src/spotify/exportTracks.ts` 则会导出点赞歌单
 7. 本地运行确认正常后, 仓库设置中找到 `Workflow permissions` 选择 `Read and write permissions`, 并配置 `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` 3个 secrets
 8. 手动运行 `Spotify Export Tracks` 这个 workflow, 如果一切正常则会生成 data 的 txt, 并自动提交推送
 

@@ -4,8 +4,8 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "spotifyExportTracks": "tsx src/spotifyExportTracks.ts",
-    "spotifyServer": "tsx watch src/spotifyServer.ts"
+    "spotifyExportTracks": "tsx src/spotify/exportTracks.ts",
+    "spotifyServer": "tsx watch src/spotify/server.ts"
   },
   "keywords": [],
   "author": "",
