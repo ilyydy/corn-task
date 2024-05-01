@@ -308,8 +308,8 @@ export async function exportTracks() {
 
   mkTmpDir();
   mkDataDir();
-  const fullTxtPath = path.join(tmpPath, fullTxt);
-  const lastFullTxtPath = path.join(dataPath, fullTxt);
+  const fullTxtPath = path.join(dataPath, fullTxt);
+  const lastFullTxtPath = path.join(tmpPath, fullTxt);
   const addTxtPath = path.join(dataPath, addTxt);
   const delTxtPath = path.join(dataPath, delTxt);
   const unplayableTxtPath = path.join(dataPath, unplayableTxt);
@@ -353,11 +353,6 @@ export async function exportTracks() {
 
   const msg = `本次总共 ${trackMap.size}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}, 不能播放 ${unplayableTracks.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
-
-  if (lastTrackMap) {
-    await fs.unlink(lastFullTxtPath);
-  }
-  await fs.rename(fullTxtPath, lastFullTxtPath);
 
   await sendTrackNotifyMsg({ statisticsMsg: msg, tracksAdded, tracksDeleted });
 }

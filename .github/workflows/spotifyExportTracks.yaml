@@ -15,6 +15,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'spotifyTracks'
+        continue-on-error: true
+      - run: |
+          if [ -f spotifyTracks-full.txt ]; then
+            mkdir tmp
+            cp spotifyTracks-full.txt tmp/spotifyTracks-full.txt
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: 'main'
       - uses: pnpm/action-setup@v3
         with:
           version: 9
@@ -30,20 +41,10 @@ jobs:
             SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
             SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
             T2S_PHRASES: ${{ secrets.T2S_PHRASES }}
-        run: |
-          pnpm spotifyExportTracks
-      - name: Read spotifyTracks-statistics.txt
-        run: |
-          content=$(head -n 1 data/spotifyTracks-statistics.txt)
-          echo "SPOTIFY_TRACKS_STATISTICS=$content" >> $GITHUB_ENV # 将文件内容存在变量里
-      - name: Commint and push
-        run: |
-          last_author_name=$(git log -1 --pretty=format:'%an')
-          last_author_email=$(git log -1 --pretty=format:'%ae')
-          git config --global user.name "$last_author_name"
-          git config --global user.email "$last_author_email"
-          git add -A
-          git commit --allow-empty -m "spotifyExportTracks: $SPOTIFY_TRACKS_STATISTICS"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm spotifyExportTracks
+      - name: Push to branch
+        uses: JamesIves/github-pages-deploy-action@releases/v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: spotifyTracks
+          folder: data
