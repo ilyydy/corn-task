@@ -35,6 +35,8 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 
 ### 配置项 SPOTIFY_T2S_ENABLE
 
+variables 中配置
+
 用于控制是否对 Spotify 歌曲名, 歌手名, 专辑名进行繁体中文转简体中文
 
 转换库使用 [chinese-simple2traditional](https://github.com/pengzhanbo/chinese-simple2traditional)
