@@ -10,7 +10,7 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 
 使用 [Spotify Authorization Code](https://developer.spotify.com/documentation/web-api/tutorials/code-flow) 认证授权后, 调用官方 Web API 导出点赞歌单
 
-导出后的信息存在当前分支 data 目录下
+导出后的信息存在 `spotifyTracks` 分支
 
 - spotifyTracks-full.txt: 本次全量歌曲
 - spotifyTracks-add.txt: 本次相比上次新增的歌曲
@@ -29,7 +29,7 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 5. 复制 access token 填入 `.env` 中的 `SPOTIFY_REFRESH_TOKEN`
 6. 如果一切正常, 本地运行 `src/spotify/exportTracks.ts` 则会导出点赞歌单
 7. 本地运行确认正常后, 仓库设置中找到 `Workflow permissions` 选择 `Read and write permissions`, 并配置 `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` 3个 secrets
-8. 手动运行 `Spotify Export Tracks` 这个 workflow, 如果一切正常则会生成 data 的 txt, 并自动提交推送
+8. 手动运行 `Spotify Export Tracks` 这个 workflow, 如果一切正常则会生成 txt, 并自动提交推送到 `spotifyTracks` 分支
 
 ## 其他
 
