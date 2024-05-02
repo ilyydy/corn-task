@@ -286,16 +286,16 @@ export async function sendTrackNotifyMsg({
     });
 
     for (const msg of msgs) {
-      console.log(msg);
+      logger.debug(msg);
       await sendNotifyMsg({ msgtype: 'markdown', markdown: { content: msg } }, NOTIFY_URL);
     }
   };
 
   if (tracksDeleted?.length) {
-    await sendTracksMsgs(tracksDeleted, { title: '已删' });
+    await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
   }
   if (tracksAdded?.length) {
-    await sendTracksMsgs(tracksAdded, { title: '已增' });
+    await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
   }
 }
 
@@ -351,7 +351,7 @@ export async function exportTracks() {
     await fs.writeFile(unplayableTxtPath, unplayableTracks.map((i) => JSON.stringify(i)).join('\n'));
   }
 
-  const msg = `本次总共 ${trackMap.size}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}, 不能播放 ${unplayableTracks.length}`;
+  const msg = `Spotify 本次总共 ${trackMap.size}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}, 不能播放 ${unplayableTracks.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
 
   await sendTrackNotifyMsg({ statisticsMsg: msg, tracksAdded, tracksDeleted });
