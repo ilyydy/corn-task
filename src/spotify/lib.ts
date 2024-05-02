@@ -28,7 +28,7 @@ const {
   SPOTIFY_CLIENT_SECRET: spotifyClientSecret = '',
   SPOTIFY_REFRESH_TOKEN: spotifyRefreshToken = '',
   SPOTIFY_T2S_ENABLE: _SPOTIFY_T2S_ENABLE = 'true',
-  SPOTIFY_DEBUG = 'true',
+  SPOTIFY_DEBUG = 'false',
   NOTIFY_URL = '',
 } = process.env;
 
