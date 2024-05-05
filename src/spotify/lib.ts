@@ -14,14 +14,7 @@ import {
   sendNotifyMsg,
 } from '../common.js';
 
-import type {
-  RefreshTokenData,
-  SavedTracksPage,
-  SavedTrack,
-  Track,
-  SimplifiedArtist,
-  MyTrack,
-} from './types.js';
+import type { RefreshTokenData, SavedTracksPage, SavedTrack, Track, SimplifiedArtist, MyTrack } from './types.js';
 
 const {
   SPOTIFY_CLIENT_ID: spotifyClientId = '',
@@ -129,10 +122,7 @@ export async function getArtistsByIds(accessToken: string, ids: string[]) {
  * 分页获取当前用户点赞的歌曲并进行处理
  * @see https://developer.spotify.com/documentation/web-api/reference/get-users-saved-tracks
  */
-export async function getMySavedTracks(
-  accessToken: string,
-  handlePage: (savedTracks: SavedTrack[]) => Promise<void>,
-) {
+export async function getMySavedTracks(accessToken: string, handlePage: (savedTracks: SavedTrack[]) => Promise<void>) {
   let total = 0;
   let count = 0;
   let offset = 0;
@@ -274,13 +264,13 @@ export async function sendTrackNotifyMsg({
 
   const sendTracksMsgs = async (tracks: MyTrack[], { title = '' } = {}) => {
     // 每次发的消息最长不超过4096个字节 分批发送
-    const msgs = chunk(tracks, 50).map((i) => {
+    const msgs = chunk(tracks, 20).map((i) => {
       const l = i.map(
         (track) =>
           `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`,
       );
       if (title) {
-        l.unshift(`## ${title}`);
+        l.unshift(`## ${title} \n\n`);
       }
       return l.join('\n');
     });
