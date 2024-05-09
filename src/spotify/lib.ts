@@ -166,20 +166,24 @@ export async function getMySavedTracks(accessToken: string, handlePage: (savedTr
   logger.info(`${getMySavedTracks.name}, total: ${total}, count: ${count}`);
 }
 
-export async function handleMySavedTracks(outputPath: string) {
+export async function handleMySavedTracks() {
   const start = Date.now();
   const { access_token } = await refreshToken();
 
-  const lineList = [] as string[];
-  const trackMap = new Map<string, MyTrack>();
+  const tracks: Track[] = [];
+  const myTracks: MyTrack[] = [];
   const unplayableTracks: MyTrack[] = [];
   await getMySavedTracks(access_token, async (savedTracks) => {
     // get-users-saved-tracks 接口数据有 preview_url 肯定可以, 没有的需根据 get-several-tracks 接口进一步确认
     const trackIdListWithoutPreviewUrl = savedTracks.filter((i) => !i.track.preview_url).map((i) => i.track.id);
-    const tracks =
+    const tracksWithPreviewUrl =
       trackIdListWithoutPreviewUrl.length > 0 ? await getTracksByIds(access_token, trackIdListWithoutPreviewUrl) : [];
 
     for (const savedTrack of savedTracks) {
+      if (debugMode) {
+        tracks.push(savedTrack.track);
+      }
+
       const myTrack = {
         id: savedTrack.track.id,
         name: SPOTIFY_T2S_ENABLE ? toSimplified(savedTrack.track.name) : savedTrack.track.name,
@@ -197,32 +201,26 @@ export async function handleMySavedTracks(outputPath: string) {
           originName: savedTrack.track.album.name,
         },
         added_at: savedTrack.added_at,
-        playable:
-          !(!savedTrack.track.preview_url && !tracks.find((track) => track.id === savedTrack.track.id)?.preview_url),
+        playable: !(!savedTrack.track.preview_url && !tracksWithPreviewUrl.find((track) => track.id === savedTrack.track.id)?.preview_url),
       };
-      lineList.push(JSON.stringify(myTrack));
-      trackMap.set(myTrack.id, myTrack);
+      myTracks.push(myTrack);
       if (!myTrack.playable) {
         unplayableTracks.push(myTrack);
       }
-      if (debugMode) {
-        mkTmpDir();
-        await fs.appendFile(
-          path.join(tmpPath, 'savedTracks.txt'),
-          savedTracks.map((i) => JSON.stringify(i)).join('\n'),
-        );
-      }
     }
   });
-  await fs.writeFile(outputPath, lineList.join('\n'));
+
+  if (debugMode) {
+    await fs.writeFile(path.join(tmpPath, 'savedTracks.txt'), tracks.map((i) => JSON.stringify(i)).join('\n'));
+  }
   logger.info(`${handleMySavedTracks.name} 耗时 ${Date.now() - start}ms`);
-  return { trackMap, unplayableTracks };
+  return { tracks: myTracks, unplayableTracks };
 }
 
 /**
- * 读取上一次保存的全量 txt, 用于与本次对比
+ * 读取 txt, 输出 map<id, track>
  */
-export async function readLastFullTxt(filePath: string) {
+export async function readTracksTxt(filePath: string) {
   try {
     await fs.access(filePath);
     const fileStream = await fs.open(filePath, 'r');
@@ -241,103 +239,99 @@ export async function readLastFullTxt(filePath: string) {
     await fileStream.close();
     return map;
   } catch (error) {
-    logger.info(`上一次全量 txt 不存在 ${filePath}`);
+    logger.info(`txt 不存在 ${filePath}`);
     return;
   }
 }
 
-export async function sendTrackNotifyMsg({
-  statisticsMsg,
-  tracksAdded,
-  tracksDeleted,
-}: {
-  statisticsMsg: string;
-  tracksAdded?: MyTrack[];
-  tracksDeleted?: MyTrack[];
-}) {
-  if (!NOTIFY_URL) return;
-
-  await sendNotifyMsg({ msgtype: 'text', text: { content: statisticsMsg } }, NOTIFY_URL);
-
-  const sendTracksMsgs = async (tracks: MyTrack[], { title = '' } = {}) => {
-    const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`);
-
-    // 每次发的消息最长不超过4096个字节 分批发送
-    const msgs = chunk(trackStrList, 20).map((i) => {
-      if (title) {
-        i.unshift(`## ${title} \n\n`);
-      }
-      return i.join('\n');
-    });
-
-    for (const msg of msgs) {
-      logger.debug(msg);
-      await sendNotifyMsg({ msgtype: 'markdown', markdown: { content: msg } }, NOTIFY_URL);
-    }
-  };
-
-  if (tracksDeleted?.length) {
-    await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
-  }
-  if (tracksAdded?.length) {
-    await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
-  }
+export async function saveTracksTxt(filePath: string, tracks: MyTrack[]) {
+  if (!tracks.length) return;
+  await fs.writeFile(filePath, tracks.map((i) => JSON.stringify(i)).join('\n'));
 }
+
+export function getTracksChangeInfo(tracks: MyTrack[], lastTrackMap?: Map<string, MyTrack>) {
+  const tracksAdded = [] as MyTrack[];
+  const tracksDeleted = [] as MyTrack[];
+
+  if (!lastTrackMap) {
+    return { tracksAdded: tracks, tracksDeleted };
+  }
+
+  for (const track of tracks) {
+    const trackId = track.id;
+    if (!lastTrackMap.has(trackId)) {
+      tracksAdded.push(track);
+    } else {
+      // 删掉共有的, 剩下的全是上次独有的, 即本次减少的
+      lastTrackMap.delete(trackId);
+    }
+  }
+  tracksDeleted.push(...lastTrackMap.values());
+
+  return { tracksAdded, tracksDeleted };
+}
+
+export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
+  if (!NOTIFY_URL || tracks.length === 0) return;
+  const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`);
+
+  // 每次发的消息最长不超过4096个字节 分批发送
+  const msgs = chunk(trackStrList, 20).map((i) => {
+    if (title) {
+      i.unshift(`## ${title} \n\n`);
+    }
+    return i.join('\n');
+  });
+
+  for (const msg of msgs) {
+    logger.debug(msg);
+    await sendNotifyMsg({ msgtype: 'markdown', markdown: { content: msg } }, NOTIFY_URL);
+  }
+};
 
 export async function exportTracks() {
   const fullTxt = `spotifyTracks-full.txt`; // 本次全量
   const addTxt = `spotifyTracks-add.txt`; // 本次新增
   const delTxt = `spotifyTracks-del.txt`; // 本次减少
   const unplayableTxt = `spotifyTracks-unplayable.txt`; // 本次不能播放
+  const unplayableAddTxt = `spotifyTracks-unplayable-add.txt`; // 本次不能播放新增
+  const unplayableDelTxt = `spotifyTracks-unplayable-del.txt`; // 本次不能播放减少
   const statisticsTxt = `spotifyTracks-statistics.txt`; // 统计信息
 
   mkTmpDir();
   mkDataDir();
   const fullTxtPath = path.join(dataPath, fullTxt);
-  const lastFullTxtPath = path.join(tmpPath, fullTxt);
   const addTxtPath = path.join(dataPath, addTxt);
   const delTxtPath = path.join(dataPath, delTxt);
   const unplayableTxtPath = path.join(dataPath, unplayableTxt);
+  const unplayableAddTxtPath = path.join(dataPath, unplayableAddTxt);
+  const unplayableDelTxtPath = path.join(dataPath, unplayableDelTxt);
   const statisticsTxtPath = path.join(dataPath, statisticsTxt);
+  const lastFullTxtPath = path.join(tmpPath, fullTxt);
+  const lastUnplayableTxtPath = path.join(tmpPath, unplayableTxt);
 
-  const { trackMap, unplayableTracks } = await handleMySavedTracks(fullTxtPath);
-  const lastTrackMap = await readLastFullTxt(lastFullTxtPath);
+  const { tracks, unplayableTracks } = await handleMySavedTracks();
+  await saveTracksTxt(fullTxtPath, tracks);
+  await saveTracksTxt(unplayableTxtPath, unplayableTracks);
 
-  await Promise.all([
-    fs.unlink(addTxtPath).catch(() => ''),
-    fs.unlink(delTxtPath).catch(() => ''),
-    fs.unlink(statisticsTxtPath).catch(() => ''),
-    fs.unlink(unplayableTxtPath).catch(() => ''),
-  ]);
+  const lastFullTrackMap = await readTracksTxt(lastFullTxtPath);
+  const { tracksAdded, tracksDeleted } = getTracksChangeInfo(tracks, lastFullTrackMap);
+  await saveTracksTxt(addTxtPath, tracksAdded);
+  await saveTracksTxt(delTxtPath, tracksDeleted);
 
-  const tracksAdded = [] as MyTrack[];
-  const tracksDeleted = [] as MyTrack[];
-  if (lastTrackMap) {
-    for (const [trackId, track] of trackMap.entries()) {
-      if (!lastTrackMap.has(trackId)) {
-        tracksAdded.push(track);
-      } else {
-        // 删掉共有的, 剩下的全是上次独有的, 即本次减少的
-        lastTrackMap.delete(trackId);
-      }
-    }
+  const lastUnplayableTrackMap = await readTracksTxt(lastUnplayableTxtPath);
+  const { tracksAdded: unplayableTracksAdded, tracksDeleted: unplayableTracksDeleted } = getTracksChangeInfo(unplayableTracks, lastUnplayableTrackMap);
+  await saveTracksTxt(unplayableAddTxtPath, unplayableTracksAdded);
+  await saveTracksTxt(unplayableDelTxtPath, unplayableTracksDeleted);
 
-    if (tracksAdded.length > 0) {
-      await fs.writeFile(addTxtPath, tracksAdded.map((i) => JSON.stringify(i)).join('\n'));
-    }
-
-    if (lastTrackMap.size > 0) {
-      tracksDeleted.push(...lastTrackMap.values());
-      await fs.writeFile(delTxtPath, tracksDeleted.map((i) => JSON.stringify(i)).join('\n'));
-    }
-  }
-
-  if (unplayableTracks.length > 0) {
-    await fs.writeFile(unplayableTxtPath, unplayableTracks.map((i) => JSON.stringify(i)).join('\n'));
-  }
-
-  const msg = `Spotify 本次总共 ${trackMap.size}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}, 不能播放 ${unplayableTracks.length}`;
+  const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}.
+    不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
+  await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
 
-  await sendTrackNotifyMsg({ statisticsMsg: msg, tracksAdded, tracksDeleted });
+  await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
+  await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
+
+  await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
+  await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
 }
