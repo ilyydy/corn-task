@@ -7,7 +7,6 @@ import {
   dataPath,
   mkDataDir,
   mkTmpDir,
-  projectRootPath,
   tmpPath,
   toSimplified,
   createLogger,
@@ -199,9 +198,7 @@ export async function handleMySavedTracks(outputPath: string) {
         },
         added_at: savedTrack.added_at,
         playable:
-          !savedTrack.track.preview_url && !tracks.find((track) => track.id === savedTrack.track.id)?.preview_url
-            ? false
-            : true,
+          !(!savedTrack.track.preview_url && !tracks.find((track) => track.id === savedTrack.track.id)?.preview_url),
       };
       lineList.push(JSON.stringify(myTrack));
       trackMap.set(myTrack.id, myTrack);
@@ -263,16 +260,14 @@ export async function sendTrackNotifyMsg({
   await sendNotifyMsg({ msgtype: 'text', text: { content: statisticsMsg } }, NOTIFY_URL);
 
   const sendTracksMsgs = async (tracks: MyTrack[], { title = '' } = {}) => {
+    const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`);
+
     // 每次发的消息最长不超过4096个字节 分批发送
-    const msgs = chunk(tracks, 20).map((i) => {
-      const l = i.map(
-        (track) =>
-          `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`,
-      );
+    const msgs = chunk(trackStrList, 20).map((i) => {
       if (title) {
-        l.unshift(`## ${title} \n\n`);
+        i.unshift(`## ${title} \n\n`);
       }
-      return l.join('\n');
+      return i.join('\n');
     });
 
     for (const msg of msgs) {
