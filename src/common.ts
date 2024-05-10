@@ -63,7 +63,7 @@ export const createLogger = ({ debugMode }: { debugMode: boolean } = { debugMode
 const logger = createLogger();
 
 /**
- * 向指定地址推送信息 如企业微信群机器
+ * 向指定地址推送信息 如企业微信群机器人
  * @see https://developer.work.weixin.qq.com/document/path/91770
  */
 export async function sendNotifyMsg(data: any, url: string) {

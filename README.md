@@ -16,6 +16,8 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 - spotifyTracks-add.txt: 本次相比上次新增的歌曲
 - spotifyTracks-del.txt: 本次相比上次减少的歌曲
 - spotifyTracks-unplayable.txt: 本次不可播放的歌曲
+- spotifyTracks-unplayable-add.txt: 本次不可播放的新增的歌曲
+- spotifyTracks-unplayable-del.txt: 本次不可播放的减少的歌曲
 - spotifyTracks-statistics.txt: 本次统计信息
 
 定时任务 [spotifyExportTracks](./.github/workflows/spotifyExportTracks.yaml) 在北京时间每周日晚上10点执行一次
