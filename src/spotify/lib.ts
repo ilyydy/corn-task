@@ -273,14 +273,14 @@ export function getTracksChangeInfo(tracks: MyTrack[], lastTrackMap?: Map<string
 
 export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
   if (!NOTIFY_URL || tracks.length === 0) return;
-  const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}\n\n`);
+  const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}`);
 
   // 每次发的消息最长不超过4096个字节 分批发送
   const msgs = chunk(trackStrList, 20).map((i) => {
     if (title) {
-      i.unshift(`## ${title} \n\n`);
+      i.unshift(`## ${title}`);
     }
-    return i.join('\n');
+    return i.join('\n \n');
   });
 
   for (const msg of msgs) {
@@ -329,9 +329,12 @@ export async function exportTracks() {
   await fs.writeFile(statisticsTxtPath, msg);
   await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
 
-  await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
-  await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
+  // 第一次不发增删消息
+  if (lastFullTrackMap) {
+    await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
+    await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
 
-  await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
-  await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
+    await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
+    await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
+  }
 }
