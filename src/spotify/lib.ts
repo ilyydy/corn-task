@@ -274,15 +274,21 @@ export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
   );
 
   // 每次发的消息最长不超过4096个字节 分批发送
-  for (const i of chunk(trackStrList, 20)) {
+  const chunks = chunk(trackStrList, 20);
+  for (let index = 0; index < chunks.length; index++) {
+    const i = [...chunks[index]];
     if (title) {
       i.unshift(`## ${title}`);
     }
     const content = i.join('\n \n');
     logger.debug(content);
-    const { success } = await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
+    const { success } = await sendNotifyMsg(
+      { msgtype: 'markdown', markdown: { content } },
+      NOTIFY_URL,
+      `${title}-${index}`,
+    );
     if (!success) {
-      logger.debug(`content ${content} send fail`);
+      logger.debug(`tracksMsgs ${title} ${index + 1} 批次推送失败\n${content}`);
     }
   }
 }
@@ -328,7 +334,7 @@ export async function exportTracks() {
   const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}. 不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
   if (NOTIFY_URL) {
-    await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
+    await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL, 'statisticsMsg');
   }
 
   // 第一次不发增删消息
