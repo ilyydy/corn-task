@@ -276,16 +276,13 @@ export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
   const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}`);
 
   // 每次发的消息最长不超过4096个字节 分批发送
-  const msgs = chunk(trackStrList, 20).map((i) => {
+  for (const i of chunk(trackStrList, 20)) {
     if (title) {
       i.unshift(`## ${title}`);
     }
-    return i.join('\n \n');
-  });
-
-  for (const msg of msgs) {
-    logger.debug(msg);
-    await sendNotifyMsg({ msgtype: 'markdown', markdown: { content: msg } }, NOTIFY_URL);
+    const content = i.join('\n \n');
+    logger.debug(content);
+    await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
   }
 };
 
