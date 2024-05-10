@@ -280,7 +280,10 @@ export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
     }
     const content = i.join('\n \n');
     logger.debug(content);
-    await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
+    const { success } = await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
+    if (!success) {
+      logger.debug(`content ${content} send fail`);
+    }
   }
 }
 
@@ -324,7 +327,9 @@ export async function exportTracks() {
 
   const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}. 不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
-  await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
+  if (NOTIFY_URL) {
+    await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
+  }
 
   // 第一次不发增删消息
   if (lastFullTrackMap) {
