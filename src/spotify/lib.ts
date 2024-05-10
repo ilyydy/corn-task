@@ -3,15 +3,7 @@ import readline from 'node:readline/promises';
 import fs from 'node:fs/promises';
 import chunk from 'lodash-es/chunk.js';
 
-import {
-  dataPath,
-  mkDataDir,
-  mkTmpDir,
-  tmpPath,
-  toSimplified,
-  createLogger,
-  sendNotifyMsg,
-} from '../common.js';
+import { dataPath, mkDataDir, mkTmpDir, tmpPath, toSimplified, createLogger, sendNotifyMsg } from '../common.js';
 
 import type { RefreshTokenData, SavedTracksPage, SavedTrack, Track, SimplifiedArtist, MyTrack } from './types.js';
 
@@ -201,7 +193,10 @@ export async function handleMySavedTracks() {
           originName: savedTrack.track.album.name,
         },
         added_at: savedTrack.added_at,
-        playable: !(!savedTrack.track.preview_url && !tracksWithPreviewUrl.find((track) => track.id === savedTrack.track.id)?.preview_url),
+        playable: !(
+          !savedTrack.track.preview_url &&
+          !tracksWithPreviewUrl.find((track) => track.id === savedTrack.track.id)?.preview_url
+        ),
       };
       myTracks.push(myTrack);
       if (!myTrack.playable) {
@@ -273,7 +268,10 @@ export function getTracksChangeInfo(tracks: MyTrack[], lastTrackMap?: Map<string
 
 export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
   if (!NOTIFY_URL || tracks.length === 0) return;
-  const trackStrList = tracks.map(track => `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}`);
+  const trackStrList = tracks.map(
+    (track) =>
+      `id: ${track.id}\n歌名: ${track.name}\n歌手名: ${track.artists.map((artist) => artist.name)}\n专辑名: ${track.album.name}\n可播放: ${track.playable}`,
+  );
 
   // 每次发的消息最长不超过4096个字节 分批发送
   for (const i of chunk(trackStrList, 20)) {
@@ -282,9 +280,12 @@ export async function sendTracksMsgs(tracks: MyTrack[], { title = '' } = {}) {
     }
     const content = i.join('\n \n');
     logger.debug(content);
-    await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
+    const { success } = await sendNotifyMsg({ msgtype: 'markdown', markdown: { content } }, NOTIFY_URL);
+    if (!success) {
+      logger.debug(`content ${content} send fail`);
+    }
   }
-};
+}
 
 export async function exportTracks() {
   const fullTxt = `spotifyTracks-full.txt`; // 本次全量
@@ -317,14 +318,18 @@ export async function exportTracks() {
   await saveTracksTxt(delTxtPath, tracksDeleted);
 
   const lastUnplayableTrackMap = await readTracksTxt(lastUnplayableTxtPath);
-  const { tracksAdded: unplayableTracksAdded, tracksDeleted: unplayableTracksDeleted } = getTracksChangeInfo(unplayableTracks, lastUnplayableTrackMap);
+  const { tracksAdded: unplayableTracksAdded, tracksDeleted: unplayableTracksDeleted } = getTracksChangeInfo(
+    unplayableTracks,
+    lastUnplayableTrackMap,
+  );
   await saveTracksTxt(unplayableAddTxtPath, unplayableTracksAdded);
   await saveTracksTxt(unplayableDelTxtPath, unplayableTracksDeleted);
 
-  const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}.
-    不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
+  const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}. 不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
   await fs.writeFile(statisticsTxtPath, msg);
-  await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
+  if (NOTIFY_URL) {
+    await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL);
+  }
 
   // 第一次不发增删消息
   if (lastFullTrackMap) {

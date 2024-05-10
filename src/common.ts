@@ -68,7 +68,7 @@ const logger = createLogger();
  */
 export async function sendNotifyMsg(data: any, url: string) {
   if (!url) {
-    return;
+    return { success: false };
   }
 
   try {
@@ -83,7 +83,9 @@ export async function sendNotifyMsg(data: any, url: string) {
     const { status, statusText } = response;
     const body = await response.json();
     logger.info(`${sendNotifyMsg.name} 推送信息结果 status ${status}`, body);
+    return { success: true }
   } catch (e) {
     logger.error(`${sendNotifyMsg.name} 推送信息失败 `, e);
+    return { success: false }
   }
 }

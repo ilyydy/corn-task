@@ -22,6 +22,7 @@ jobs:
           mkdir tmp
           if [ -f spotifyTracks-full.txt ]; then
             cp spotifyTracks-full.txt tmp/spotifyTracks-full.txt
+            cp spotifyTracks-unplayable.txt tmp/spotifyTracks-unplayable.txt
           fi
           ls tmp
       - run: |
