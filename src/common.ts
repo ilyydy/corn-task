@@ -66,7 +66,7 @@ const logger = createLogger();
  * 向指定地址推送信息 如企业微信群机器人
  * @see https://developer.work.weixin.qq.com/document/path/91770
  */
-export async function sendNotifyMsg(data: any, url: string) {
+export async function sendNotifyMsg(data: any, url: string, identifier?: string) {
   if (!url) {
     return { success: false };
   }
@@ -82,10 +82,10 @@ export async function sendNotifyMsg(data: any, url: string) {
 
     const { status, statusText } = response;
     const body = await response.json();
-    logger.info(`${sendNotifyMsg.name} 推送信息结果 status ${status}`, body);
-    return { success: true }
+    logger.info(`${sendNotifyMsg.name} ${identifier} 推送信息结果 status ${status}`, body);
+    return { success: true };
   } catch (e) {
-    logger.error(`${sendNotifyMsg.name} 推送信息失败 `, e);
-    return { success: false }
+    logger.error(`${sendNotifyMsg.name} ${identifier} 推送信息失败 `, e);
+    return { success: false };
   }
 }
