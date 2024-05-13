@@ -10,7 +10,7 @@ importers:
     dependencies:
       chinese-simple2traditional:
         specifier: ^2.2.0
-        version: 2.2.1
+        version: 2.2.2
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -238,8 +238,8 @@ packages:
     resolution: {integrity: sha512-GHTSNSYICQ7scH7sZ+M2rFopRoLh8t2bLSW6BbgrtLsahOIB5iyAVJf9GjWK3cYTDaMj4XdBpM1cA6pIS0Kv2w==}
     engines: {node: '>= 0.4'}
 
-  chinese-simple2traditional@2.2.1:
-    resolution: {integrity: sha512-K2S/TPojpN0QRXjTmnQB8riMJU2Syki7UTJGlahagNoiIdT5p1rRvRy/P0Q0COK9MBCdNb0PTw2T51ctnEN1HQ==}
+  chinese-simple2traditional@2.2.2:
+    resolution: {integrity: sha512-IzQ+Z6PHqB9JCZTNgEYLp9YFJ/3Wmgaj2tFeYqDo0LtIQYkAwIO9/Atpx2WXibP6GxWhK4SfVPkCnLy+8TrhAQ==}
 
   content-disposition@0.5.4:
     resolution: {integrity: sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==}
@@ -665,7 +665,7 @@ snapshots:
       get-intrinsic: 1.2.4
       set-function-length: 1.2.2
 
-  chinese-simple2traditional@2.2.1: {}
+  chinese-simple2traditional@2.2.2: {}
 
   content-disposition@0.5.4:
     dependencies:
