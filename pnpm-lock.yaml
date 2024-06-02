@@ -32,7 +32,7 @@ importers:
         version: 4.19.2
       prettier:
         specifier: ^3.2.5
-        version: 3.2.5
+        version: 3.3.0
       tsx:
         specifier: ^4.7.3
         version: 4.9.2
@@ -422,8 +422,8 @@ packages:
   path-to-regexp@0.1.7:
     resolution: {integrity: sha512-5DFkuoqlv1uYQKxy8omFBeJPQcdoE07Kv2sferDCrAq1ohOU+MSDswDIbnx3YAM60qIOnYa53wBhXW0EbMonrQ==}
 
-  prettier@3.2.5:
-    resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
+  prettier@3.3.0:
+    resolution: {integrity: sha512-J9odKxERhCQ10OC2yb93583f6UnYutOeiV5i0zEDS7UGTdUt0u+y8erxl3lBKvwo/JHyyoEdXjwp4dke9oyZ/g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -866,7 +866,7 @@ snapshots:
 
   path-to-regexp@0.1.7: {}
 
-  prettier@3.2.5: {}
+  prettier@3.3.0: {}
 
   proxy-addr@2.0.7:
     dependencies:
