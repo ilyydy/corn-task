@@ -30,7 +30,7 @@ jobs:
           git branch
           git checkout main
           ls tmp
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
       - name: Use Node.js ${{ matrix.node-version }}
