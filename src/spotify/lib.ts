@@ -2,10 +2,11 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import fs from 'node:fs/promises';
 import chunk from 'lodash-es/chunk.js';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 
 import { dataPath, mkDataDir, mkTmpDir, tmpPath, toSimplified, createLogger, sendNotifyMsg } from '../common.js';
 
-import type { RefreshTokenData, SavedTracksPage, SavedTrack, Track, SimplifiedArtist, MyTrack } from './types.js';
+import type { RefreshTokenData, User, SavedTracksPage, SavedTrack, Track, SimplifiedArtist, MyTrack } from './types.js';
 
 const {
   SPOTIFY_CLIENT_ID: spotifyClientId = '',
@@ -14,6 +15,7 @@ const {
   SPOTIFY_T2S_ENABLE: _SPOTIFY_T2S_ENABLE = 'true',
   SPOTIFY_DEBUG = 'false',
   NOTIFY_URL = '',
+  PROXY_URL = '',
 } = process.env;
 
 const debugMode = SPOTIFY_DEBUG === 'true';
@@ -21,6 +23,11 @@ const logger = createLogger({ debugMode });
 
 if (!spotifyClientId || !spotifyClientSecret || !spotifyRefreshToken) {
   throw new Error('Spotify 环境变量缺失');
+}
+
+if (PROXY_URL) {
+  const proxyAgent = new ProxyAgent(PROXY_URL);
+  setGlobalDispatcher(proxyAgent);
 }
 
 const SPOTIFY_T2S_ENABLE = _SPOTIFY_T2S_ENABLE === 'true';
@@ -56,12 +63,36 @@ export async function refreshToken() {
 }
 
 /**
+ * 获取当前用户信息
+ * @see https://developer.spotify.com/documentation/web-api/reference/get-current-users-profile
+ */
+export async function getMe(accessToken: string) {
+  const response = await fetch(`${baseApiUrl}/me`, {
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+    },
+  });
+
+  const data = (await response.json()) as User;
+  const { status, statusText } = response;
+
+  if (status !== 200) {
+    const funName = getMe.name;
+    logger.error(`${funName} fail, status: ${status} statusText: ${statusText} data: `, data);
+    throw new Error(`${funName} fail, status: ${status} statusText: ${statusText}`);
+  }
+
+  return data;
+}
+
+/**
  * 批量根据歌曲id获取歌曲信息
  * @see https://developer.spotify.com/documentation/web-api/reference/get-several-tracks
  */
-export async function getTracksByIds(accessToken: string, ids: string[]) {
+export async function getTracksByIds(accessToken: string, ids: string[], country: string) {
   const query = new URLSearchParams({
     ids: ids.join(','),
+    market: country,
     locale: 'zh_CN',
   });
   const response = await fetch(`${baseApiUrl}/tracks?${query.toString()}`, {
@@ -70,7 +101,7 @@ export async function getTracksByIds(accessToken: string, ids: string[]) {
     },
   });
 
-  const data: { tracks: Track[] } = await response.json();
+  const data = (await response.json()) as { tracks: Track[] };
   const { status, statusText } = response;
 
   if (status !== 200) {
@@ -97,7 +128,7 @@ export async function getArtistsByIds(accessToken: string, ids: string[]) {
     },
   });
 
-  const data: { artists: SimplifiedArtist[] } = await response.json();
+  const data = (await response.json()) as { artists: SimplifiedArtist[] };
   const { status, statusText } = response;
 
   if (status !== 200) {
@@ -113,7 +144,11 @@ export async function getArtistsByIds(accessToken: string, ids: string[]) {
  * 分页获取当前用户点赞的歌曲并进行处理
  * @see https://developer.spotify.com/documentation/web-api/reference/get-users-saved-tracks
  */
-export async function getMySavedTracks(accessToken: string, handlePage: (savedTracks: SavedTrack[]) => Promise<void>) {
+export async function getMySavedTracks(
+  accessToken: string,
+  country: string,
+  handlePage: (savedTracks: SavedTrack[]) => Promise<void>,
+) {
   let total = 0;
   let count = 0;
   let offset = 0;
@@ -122,6 +157,7 @@ export async function getMySavedTracks(accessToken: string, handlePage: (savedTr
   const getOnePage = async () => {
     const query = new URLSearchParams({
       locale: 'zh_CN',
+      market: country,
       limit: `${limit}`,
       offset: `${offset}`,
     });
@@ -134,7 +170,7 @@ export async function getMySavedTracks(accessToken: string, handlePage: (savedTr
 
   while (offset === 0 || total > count) {
     const response = await getOnePage();
-    const data: SavedTracksPage = await response.json();
+    const data = (await response.json()) as SavedTracksPage;
     const { status, statusText } = response;
 
     if (status !== 200) {
@@ -161,16 +197,13 @@ export async function getMySavedTracks(accessToken: string, handlePage: (savedTr
 export async function handleMySavedTracks() {
   const start = Date.now();
   const { access_token } = await refreshToken();
+  const { country } = await getMe(access_token);
 
   const tracks: Track[] = [];
   const myTracks: MyTrack[] = [];
   const unplayableTracks: MyTrack[] = [];
-  await getMySavedTracks(access_token, async (savedTracks) => {
-    // get-users-saved-tracks 接口数据有 preview_url 肯定可以, 没有的需根据 get-several-tracks 接口进一步确认
-    const trackIdListWithoutPreviewUrl = savedTracks.filter((i) => !i.track.preview_url).map((i) => i.track.id);
-    const tracksWithPreviewUrl =
-      trackIdListWithoutPreviewUrl.length > 0 ? await getTracksByIds(access_token, trackIdListWithoutPreviewUrl) : [];
-
+  const repeatTracksMap = new Map<string, MyTrack[]>();
+  await getMySavedTracks(access_token, country, async (savedTracks) => {
     for (const savedTrack of savedTracks) {
       if (debugMode) {
         tracks.push(savedTrack.track);
@@ -193,11 +226,15 @@ export async function handleMySavedTracks() {
           originName: savedTrack.track.album.name,
         },
         added_at: savedTrack.added_at,
-        playable: !(
-          !savedTrack.track.preview_url &&
-          !tracksWithPreviewUrl.find((track) => track.id === savedTrack.track.id)?.preview_url
-        ),
+        playable: !!savedTrack.track.is_playable,
       };
+
+      const sameIdTrack = myTracks.find((i) => i.id === myTrack.id);
+      if (sameIdTrack) {
+        const repeatTracks = repeatTracksMap.get(myTrack.id) || [sameIdTrack];
+        repeatTracks.push(myTrack);
+        repeatTracksMap.set(myTrack.id, repeatTracks);
+      }
       myTracks.push(myTrack);
       if (!myTrack.playable) {
         unplayableTracks.push(myTrack);
@@ -209,7 +246,7 @@ export async function handleMySavedTracks() {
     await fs.writeFile(path.join(tmpPath, 'savedTracks.txt'), tracks.map((i) => JSON.stringify(i)).join('\n'));
   }
   logger.info(`${handleMySavedTracks.name} 耗时 ${Date.now() - start}ms`);
-  return { tracks: myTracks, unplayableTracks };
+  return { tracks: myTracks, unplayableTracks, repeatTracksMap };
 }
 
 /**
@@ -300,6 +337,7 @@ export async function exportTracks() {
   const unplayableTxt = `spotifyTracks-unplayable.txt`; // 本次不能播放
   const unplayableAddTxt = `spotifyTracks-unplayable-add.txt`; // 本次不能播放新增
   const unplayableDelTxt = `spotifyTracks-unplayable-del.txt`; // 本次不能播放减少
+  const repeatTxt = `spotifyTracks-repeat.txt`; // 重复的
   const statisticsTxt = `spotifyTracks-statistics.txt`; // 统计信息
 
   mkTmpDir();
@@ -310,13 +348,22 @@ export async function exportTracks() {
   const unplayableTxtPath = path.join(dataPath, unplayableTxt);
   const unplayableAddTxtPath = path.join(dataPath, unplayableAddTxt);
   const unplayableDelTxtPath = path.join(dataPath, unplayableDelTxt);
+  const repeatTxtPath = path.join(dataPath, repeatTxt);
   const statisticsTxtPath = path.join(dataPath, statisticsTxt);
   const lastFullTxtPath = path.join(tmpPath, fullTxt);
   const lastUnplayableTxtPath = path.join(tmpPath, unplayableTxt);
 
-  const { tracks, unplayableTracks } = await handleMySavedTracks();
+  const { tracks, unplayableTracks, repeatTracksMap } = await handleMySavedTracks();
   await saveTracksTxt(fullTxtPath, tracks);
   await saveTracksTxt(unplayableTxtPath, unplayableTracks);
+
+  let repeatCount = 0;
+  if (repeatTracksMap.size > 0) {
+    for (const tracks of repeatTracksMap.values()) {
+      repeatCount += tracks.length - 1;
+      await fs.appendFile(repeatTxtPath, tracks.map((i) => JSON.stringify(i)).join('\n') + '\n\n');
+    }
+  }
 
   const lastFullTrackMap = await readTracksTxt(lastFullTxtPath);
   const { tracksAdded, tracksDeleted } = getTracksChangeInfo(tracks, lastFullTrackMap);
@@ -331,7 +378,7 @@ export async function exportTracks() {
   await saveTracksTxt(unplayableAddTxtPath, unplayableTracksAdded);
   await saveTracksTxt(unplayableDelTxtPath, unplayableTracksDeleted);
 
-  const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}. 不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}`;
+  const msg = `Spotify 本次总共 ${tracks.length}, 新增 ${tracksAdded.length}, 减少 ${tracksDeleted.length}. 不能播放 ${unplayableTracks.length}, 新增 ${unplayableTracksAdded.length}, 减少 ${unplayableTracksDeleted.length}, 重复 ${repeatCount}`;
   await fs.writeFile(statisticsTxtPath, msg);
   if (NOTIFY_URL) {
     await sendNotifyMsg({ msgtype: 'text', text: { content: msg } }, NOTIFY_URL, 'statisticsMsg');
@@ -339,10 +386,10 @@ export async function exportTracks() {
 
   // 第一次不发增删消息
   if (lastFullTrackMap) {
-    await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
-    await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
+    // await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
+    // await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
 
-    await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
-    await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
+    // await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
+    // await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
   }
 }
