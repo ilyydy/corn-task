@@ -6,6 +6,7 @@
 import express from 'express';
 import querystring from 'node:querystring';
 import 'dotenv/config';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 
 const { SPOTIFY_CLIENT_ID: spotifyClientId, SPOTIFY_CLIENT_SECRET: spotifyClientSecret } = process.env;
 
@@ -13,9 +14,14 @@ if (!spotifyClientId || !spotifyClientSecret) {
   throw new Error('Spotify 环境变量缺失');
 }
 
+if (process.env.PROXY_URL) {
+  const proxyAgent = new ProxyAgent(process.env.PROXY_URL);
+  setGlobalDispatcher(proxyAgent);
+}
+
 const port = 9000;
 // 与 Spotify App 的 Redirect URI 一样
-const redirect_uri = `http://localhost:${port}/spotify/callback`;
+const redirect_uri = `http://127.0.0.1:${port}/spotify/callback`;
 
 const app = express();
 

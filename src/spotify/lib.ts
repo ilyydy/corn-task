@@ -2,6 +2,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import fs from 'node:fs/promises';
 import chunk from 'lodash-es/chunk.js';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 
 import { dataPath, mkDataDir, mkTmpDir, tmpPath, toSimplified, createLogger, sendNotifyMsg } from '../common.js';
 
@@ -14,6 +15,7 @@ const {
   SPOTIFY_T2S_ENABLE: _SPOTIFY_T2S_ENABLE = 'true',
   SPOTIFY_DEBUG = 'false',
   NOTIFY_URL = '',
+  PROXY_URL = '',
 } = process.env;
 
 const debugMode = SPOTIFY_DEBUG === 'true';
@@ -21,6 +23,11 @@ const logger = createLogger({ debugMode });
 
 if (!spotifyClientId || !spotifyClientSecret || !spotifyRefreshToken) {
   throw new Error('Spotify 环境变量缺失');
+}
+
+if (PROXY_URL) {
+  const proxyAgent = new ProxyAgent(PROXY_URL);
+  setGlobalDispatcher(proxyAgent);
 }
 
 const SPOTIFY_T2S_ENABLE = _SPOTIFY_T2S_ENABLE === 'true';
@@ -121,7 +128,7 @@ export async function getArtistsByIds(accessToken: string, ids: string[]) {
     },
   });
 
-  const data: { artists: SimplifiedArtist[] } = await response.json();
+  const data = (await response.json()) as { artists: SimplifiedArtist[] };
   const { status, statusText } = response;
 
   if (status !== 200) {
@@ -163,7 +170,7 @@ export async function getMySavedTracks(
 
   while (offset === 0 || total > count) {
     const response = await getOnePage();
-    const data: SavedTracksPage = await response.json();
+    const data = (await response.json()) as SavedTracksPage;
     const { status, statusText } = response;
 
     if (status !== 200) {
@@ -379,10 +386,10 @@ export async function exportTracks() {
 
   // 第一次不发增删消息
   if (lastFullTrackMap) {
-    await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
-    await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
+    // await sendTracksMsgs(tracksAdded, { title: 'Spotify 已增' });
+    // await sendTracksMsgs(tracksDeleted, { title: 'Spotify 已删' });
 
-    await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
-    await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
+    // await sendTracksMsgs(unplayableTracksAdded, { title: 'Spotify 不能播放已增' });
+    // await sendTracksMsgs(unplayableTracksDeleted, { title: 'Spotify 不能播放已删' });
   }
 }
