@@ -4,7 +4,7 @@
 
 ## requirements
 
-Node.js 18 及以上, 推荐 pnpm 配合使用
+Node.js 22 及以上, 推荐 pnpm 配合使用
 
 ## Spotify 点赞歌单导出
 
@@ -18,16 +18,17 @@ Node.js 18 及以上, 推荐 pnpm 配合使用
 - spotifyTracks-unplayable.txt: 本次不可播放的歌曲
 - spotifyTracks-unplayable-add.txt: 本次不可播放的新增的歌曲
 - spotifyTracks-unplayable-del.txt: 本次不可播放的减少的歌曲
+- spotifyTracks-repeat.txt: 重复的歌曲
 - spotifyTracks-statistics.txt: 本次统计信息
 
 定时任务 [spotifyExportTracks](./.github/workflows/spotifyExportTracks.yaml) 在北京时间每周日晚上10点执行一次
 
 ### 使用
 
-1. 按照 Spotify 官方流程创建勾选了 Web API 的 App, Redirect URI 填 `http://localhost:9000/spotify/callback`, 获得 Client ID 和 Client secret
+1. 按照 Spotify 官方流程创建勾选了 Web API 的 App, Redirect URI 填 `http://127.0.0.1:9000/spotify/callback`, 获得 Client ID 和 Client secret
 2. fork 本仓库并 clone 到本地。fork 的仓库最好改为私密仓库, 你也不想自己的歌单公开吧
 3. 安装依赖, 复制 `.template.env` 为 `.env`, `.env` 中填入第1步获取的 Client ID 和 Client secret, `SPOTIFY_CLIENT_ID` 即 Client ID, `SPOTIFY_CLIENT_SECRET` 即 Client secret
-4. 运行 `src/spotify/server.ts`, 启动一个本地服务, 走 Spotify 认证权限流程, 浏览器访问 `http://localhost:9000/login` 后会自动跳转 Spotify 页面, 点击确认对你的 App 进行授权, 然后 Spotify 回调 `http://localhost:9000/spotify/callback`, 本地服务会请求 Spotify 接口获取并打印 token 信息
+4. 运行 `src/spotify/server.ts`, 启动一个本地服务, 走 Spotify 认证权限流程, 浏览器访问 `http://127.0.0.1:9000/login` 后会自动跳转 Spotify 页面, 点击确认对你的 App 进行授权, 然后 Spotify 回调 `http://127.0.0.1:9000/spotify/callback`, 本地服务会请求 Spotify 接口获取并打印 token 信息
 5. 复制 access token 填入 `.env` 中的 `SPOTIFY_REFRESH_TOKEN`
 6. 如果一切正常, 本地运行 `src/spotify/exportTracks.ts` 则会导出点赞歌单
 7. 本地运行确认正常后, 仓库设置中找到 `Workflow permissions` 选择 `Read and write permissions`, 并配置 `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` 3个 secrets
@@ -65,3 +66,7 @@ secrets 中配置
 用于推送消息的地址, 比如企业微信群机器人。如有配置:
 
 - Spotify 点赞歌单导出会推送本次统计信息, 本次相比上次减少的歌曲, 本次相比上次新增的歌曲
+
+### 配置项 PROXY_URL
+
+可选, 网络代理地址, 本地开发调试时用
