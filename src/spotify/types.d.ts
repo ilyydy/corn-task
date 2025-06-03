@@ -8,6 +8,10 @@ export interface RefreshTokenData {
   scope: string;
 }
 
+export interface User {
+  country: string;
+}
+
 export interface Page<TItemType> {
   href: string;
   items: TItemType[];
