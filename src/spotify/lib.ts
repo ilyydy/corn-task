@@ -281,7 +281,11 @@ export async function saveTracksTxt(filePath: string, tracks: MyTrack[]) {
   await fs.writeFile(filePath, tracks.map((i) => JSON.stringify(i)).join('\n'));
 }
 
-export function getTracksChangeInfo(tracks: MyTrack[], lastTrackMap?: Map<string, MyTrack>) {
+export function getTracksChangeInfo(
+  tracks: MyTrack[],
+  repeatTracksMap: Map<string, MyTrack[]>,
+  lastTrackMap?: Map<string, MyTrack>,
+) {
   const tracksAdded = [] as MyTrack[];
   const tracksDeleted = [] as MyTrack[];
 
@@ -291,7 +295,7 @@ export function getTracksChangeInfo(tracks: MyTrack[], lastTrackMap?: Map<string
 
   for (const track of tracks) {
     const trackId = track.id;
-    if (!lastTrackMap.has(trackId)) {
+    if (!lastTrackMap.has(trackId) && !repeatTracksMap.has(trackId)) {
       tracksAdded.push(track);
     } else {
       // 删掉共有的, 剩下的全是上次独有的, 即本次减少的
@@ -366,13 +370,14 @@ export async function exportTracks() {
   }
 
   const lastFullTrackMap = await readTracksTxt(lastFullTxtPath);
-  const { tracksAdded, tracksDeleted } = getTracksChangeInfo(tracks, lastFullTrackMap);
+  const { tracksAdded, tracksDeleted } = getTracksChangeInfo(tracks, repeatTracksMap, lastFullTrackMap);
   await saveTracksTxt(addTxtPath, tracksAdded);
   await saveTracksTxt(delTxtPath, tracksDeleted);
 
   const lastUnplayableTrackMap = await readTracksTxt(lastUnplayableTxtPath);
   const { tracksAdded: unplayableTracksAdded, tracksDeleted: unplayableTracksDeleted } = getTracksChangeInfo(
     unplayableTracks,
+    repeatTracksMap,
     lastUnplayableTrackMap,
   );
   await saveTracksTxt(unplayableAddTxtPath, unplayableTracksAdded);
